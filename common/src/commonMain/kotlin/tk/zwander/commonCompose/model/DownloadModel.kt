@@ -11,12 +11,18 @@ import tk.zwander.common.util.SettingsKey
 class DownloadModel : BaseModel("download_model") {
     companion object {
         private const val MANUAL_KEY = "field_manual"
+        private const val USE_TEST_FIRMWARE_KEY = "field_use_test_firmware"
     }
 
     /**
      * Whether the user is manually inputting firmware.
      */
     val manual = SettingsKey.Boolean(MANUAL_KEY.fullKey, false, BifrostSettings.settings).asMutableStateFlow()
+
+    /**
+     * Whether to fetch test firmware instead of stable firmware.
+     */
+    val useTestFirmware = SettingsKey.Boolean(USE_TEST_FIRMWARE_KEY.fullKey, false, BifrostSettings.settings).asMutableStateFlow()
 
     /**
      * The Android version of automatically-retrieved

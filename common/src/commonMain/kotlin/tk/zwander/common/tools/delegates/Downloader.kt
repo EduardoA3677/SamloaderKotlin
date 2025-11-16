@@ -254,9 +254,12 @@ object Downloader {
         model.changelog.value = null
         model.osCode.value = ""
 
+        val useTestFirmware = model.useTestFirmware.value
+
         val (fw, os, error, output) = VersionFetch.getLatestVersion(
             model.model.value,
             model.region.value,
+            useTestFirmware = useTestFirmware
         )
 
         if (error != null) {
