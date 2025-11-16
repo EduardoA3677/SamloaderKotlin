@@ -42,6 +42,68 @@ object VersionFetch {
                 )
             }
 
+            // If using test firmware, we need to decrypt MD5 hashes from <value> tags
+            if (useTestFirmware) {
+                return try {
+                    // Try to get official version for reference (without recursion)
+                    val refVersion = try {
+                        // Fetch from version.xml for reference
+                        val refResponse = globalHttpClient.get(
+                            urlString = "https://fota-cloud-dn.ospserver.net:443/firmware/${region}/${model}/version.xml",
+                        ) {
+                            userAgent("Kies2.0_FUS")
+                        }
+                        val refXml = Ksoup.parse(refResponse.bodyAsText())
+                        refXml.firstElementByTagName("firmware")
+                            ?.firstElementByTagName("version")
+                            ?.firstElementByTagName("latest")
+                            ?.text() ?: ""
+                    } catch (e: Exception) {
+                        "" // Continue without reference version
+                    }
+                    
+                    // Get test firmware and decrypt it
+                    val testResult = TestFirmwareDecrypt.getTestFirmwareVersions(
+                        model, 
+                        region, 
+                        maxVersionsToDecrypt = 100,
+                        referenceVersion = refVersion
+                    )
+                    
+                    if (testResult.error != null) {
+                        FetchResult.VersionFetchResult(
+                            error = testResult.error,
+                            rawOutput = responseXml.toString()
+                        )
+                    } else if (testResult.latestRegularUpdate != null) {
+                        // Return the latest regular update as the "latest version"
+                        FetchResult.VersionFetchResult(
+                            versionCode = testResult.latestRegularUpdate.versionCode,
+                            androidVersion = "", // Test firmware doesn't have Android version in the same way
+                            rawOutput = responseXml.toString()
+                        )
+                    } else if (testResult.versions.isNotEmpty()) {
+                        // Fallback to any decrypted version
+                        FetchResult.VersionFetchResult(
+                            versionCode = testResult.versions.first().versionCode,
+                            androidVersion = "",
+                            rawOutput = responseXml.toString()
+                        )
+                    } else {
+                        FetchResult.VersionFetchResult(
+                            error = Exception(MR.strings.noFirmwareFoundError()),
+                            rawOutput = responseXml.toString()
+                        )
+                    }
+                } catch (e: Exception) {
+                    FetchResult.VersionFetchResult(
+                        error = e,
+                        rawOutput = responseXml.toString()
+                    )
+                }
+            }
+
+            // Standard version.xml parsing for stable firmware
             try {
                 val latest = responseXml.firstElementByTagName("firmware")
                     ?.firstElementByTagName("version")

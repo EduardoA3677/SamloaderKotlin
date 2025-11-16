@@ -75,7 +75,8 @@ object TestFirmwareDecrypt {
     suspend fun getTestFirmwareVersions(
         model: String, 
         region: String,
-        maxVersionsToDecrypt: Int = 50  // Limit to avoid excessive computation
+        maxVersionsToDecrypt: Int = 50,  // Limit to avoid excessive computation
+        referenceVersion: String = ""     // Optional reference version to avoid circular dependency
     ): TestFirmwareResult = withContext(Dispatchers.Default) {
         try {
             // Fetch MD5 hashes from version.test.xml
@@ -87,15 +88,23 @@ object TestFirmwareDecrypt {
                 )
             }
             
-            // Fetch the latest official version to get reference information
-            val officialVersion = VersionFetch.getLatestVersion(model, region)
+            // Use provided reference version or fetch from official version.xml
+            val refVersion = if (referenceVersion.isNotBlank()) {
+                referenceVersion
+            } else {
+                try {
+                    VersionFetch.getLatestVersion(model, region, useTestFirmware = false).versionCode
+                } catch (e: Exception) {
+                    "" // If we can't get reference version, continue without it
+                }
+            }
             
             // Decrypt MD5 hashes to get actual firmware versions
             val decryptedVersions = decryptFirmwareVersions(
                 model = model,
                 region = region,
                 md5Hashes = md5Hashes,
-                referenceVersion = officialVersion.versionCode,
+                referenceVersion = refVersion,
                 maxVersions = maxVersionsToDecrypt
             )
             
@@ -106,7 +115,7 @@ object TestFirmwareDecrypt {
             }
             
             // Separate regular updates from major version updates
-            val (regularUpdates, majorUpdates) = categorizeVersions(decryptedVersions, officialVersion.versionCode)
+            val (regularUpdates, majorUpdates) = categorizeVersions(decryptedVersions, refVersion)
             
             TestFirmwareResult(
                 versions = decryptedVersions,
