@@ -18,12 +18,14 @@ object VersionFetch {
      * Get the latest firmware version for a given model and region.
      * @param model the device model.
      * @param region the device region.
+     * @param useTestFirmware if true, fetches from version.test.xml instead of version.xml
      * @return a Pair(FirmwareString, AndroidVersion).
      */
-    suspend fun getLatestVersion(model: String, region: String): FetchResult.VersionFetchResult {
+    suspend fun getLatestVersion(model: String, region: String, useTestFirmware: Boolean = false): FetchResult.VersionFetchResult {
         try {
+            val xmlFile = if (useTestFirmware) "version.test.xml" else "version.xml"
             val response = globalHttpClient.get(
-                urlString = "https://fota-cloud-dn.ospserver.net:443/firmware/${region}/${model}/version.test.xml",
+                urlString = "https://fota-cloud-dn.ospserver.net:443/firmware/${region}/${model}/${xmlFile}",
             ) {
                 userAgent("Kies2.0_FUS")
             }
