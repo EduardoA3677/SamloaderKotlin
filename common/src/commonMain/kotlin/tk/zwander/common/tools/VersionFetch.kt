@@ -23,7 +23,7 @@ object VersionFetch {
     suspend fun getLatestVersion(model: String, region: String): FetchResult.VersionFetchResult {
         try {
             val response = globalHttpClient.get(
-                urlString = "https://fota-cloud-dn.ospserver.net:443/firmware/${region}/${model}/version.xml",
+                urlString = "https://fota-cloud-dn.ospserver.net:443/firmware/${region}/${model}/version.test.xml",
             ) {
                 userAgent("Kies2.0_FUS")
             }
