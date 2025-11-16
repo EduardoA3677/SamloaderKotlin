@@ -73,32 +73,38 @@ object VersionFetch {
                     if (testResult.error != null) {
                         FetchResult.VersionFetchResult(
                             error = testResult.error,
-                            rawOutput = responseXml.toString()
+                            rawOutput = ""  // Don't show encrypted XML to user
                         )
                     } else if (testResult.latestRegularUpdate != null) {
                         // Return the latest regular update as the "latest version"
                         FetchResult.VersionFetchResult(
                             versionCode = testResult.latestRegularUpdate.versionCode,
                             androidVersion = "", // Test firmware doesn't have Android version in the same way
-                            rawOutput = responseXml.toString()
+                            rawOutput = ""  // Don't show encrypted XML to user
                         )
                     } else if (testResult.versions.isNotEmpty()) {
                         // Fallback to any decrypted version
                         FetchResult.VersionFetchResult(
                             versionCode = testResult.versions.first().versionCode,
                             androidVersion = "",
-                            rawOutput = responseXml.toString()
+                            rawOutput = ""  // Don't show encrypted XML to user
                         )
                     } else {
+                        // No firmware versions could be decrypted
+                        val md5Count = responseXml.select("value").size
+                        val debugInfo = "Found $md5Count encrypted firmware entries but could not decrypt any.\n" +
+                                       "Model: $model, Region: $region\n" +
+                                       "Reference version: ${if (refVersion.isNotBlank()) refVersion else "not available"}"
+                        
                         FetchResult.VersionFetchResult(
-                            error = Exception(MR.strings.noFirmwareFoundError()),
-                            rawOutput = responseXml.toString()
+                            error = Exception(MR.strings.testFirmwareDecryptionError()),
+                            rawOutput = debugInfo  // Show helpful debug info instead of encrypted XML
                         )
                     }
                 } catch (e: Exception) {
                     FetchResult.VersionFetchResult(
                         error = e,
-                        rawOutput = responseXml.toString()
+                        rawOutput = ""  // Don't show encrypted XML to user
                     )
                 }
             }
