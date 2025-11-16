@@ -131,6 +131,7 @@ object TestFirmwareDecrypt {
     
     /**
      * Decrypt firmware version MD5 hashes using brute force
+     * Based on https://github.com/EduardoA3677/SamsungTestFirmwareVersionDecrypt
      */
     private suspend fun decryptFirmwareVersions(
         model: String,
@@ -167,13 +168,41 @@ object TestFirmwareDecrypt {
             2024
         }
         
-        // Brute force parameters
-        val startYear = maxOf(referenceYear - 1, 2021)  // Start from 1 year before reference
+        // Brute force parameters - start from 4 years before current year like Python implementation
+        val startYear = maxOf(referenceYear - 4, 2021)
         val endYear = referenceYear + 1  // Go 1 year ahead
+        
+        // Get bootloader range from reference version
+        val startBootloader = if (referenceVersion.isNotEmpty()) {
+            val parts = referenceVersion.split("/")
+            if (parts.isNotEmpty() && parts[0].length >= 5) {
+                parts[0][parts[0].length - 5]
+            } else {
+                '0'
+            }
+        } else {
+            '0'
+        }
+        
+        // All possible bootloader characters (0-9, A-Z)
+        val bootloaderChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val bootloaderStart = bootloaderChars.indexOf(startBootloader)
+        val bootloaderRange = if (bootloaderStart >= 0) {
+            bootloaderChars.substring(bootloaderStart)
+        } else {
+            bootloaderChars
+        }
+        
+        // All possible characters for serial number (0-9, A-Z)
+        val serialChars = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        
+        // Track baseband versions for reuse (like Python's CpVersions)
+        val basebandVersions = mutableListOf<String>()
         
         // Iterate through possible version combinations
         for (updateType in listOf("U", "S")) {  // U=major update, S=security update
-            for (bootloader in '0'..'9') {
+            for (bootloader in bootloaderRange) {
+                
                 for (versionLetter in 'A'..'Z') {
                     for (year in startYear..endYear) {
                         val yearChar = ('A' + (year - 2021))
@@ -181,14 +210,20 @@ object TestFirmwareDecrypt {
                         for (month in 1..12) {
                             val monthChar = ('A' + (month - 1))
                             
-                            for (serial in 1..36) {  // Limit serial numbers to reduce computation
+                            // Add candidate baseband versions for this month
+                            val tempBasebands = basebandVersions.takeLast(12).toMutableList()
+                            if (cpPrefix.isNotEmpty()) {
+                                for (i in 1..2) {
+                                    val initCP = "${modelCode}${cpPrefix}${updateType}${bootloader}${versionLetter}${yearChar}${monthChar}${i}"
+                                    if (!tempBasebands.contains(initCP)) {
+                                        tempBasebands.add(initCP)
+                                    }
+                                }
+                            }
+                            
+                            for (serialChar in serialChars) {
                                 if (decryptedVersions.size >= maxVersions) {
                                     return decryptedVersions
-                                }
-                                
-                                val serialChar = when {
-                                    serial < 10 -> ('0' + serial)
-                                    else -> ('A' + (serial - 10))
                                 }
                                 
                                 // Build version strings
@@ -206,9 +241,8 @@ object TestFirmwareDecrypt {
                                     "$apVersion/$cscVersion/$apVersion"
                                 }
                                 
-                                // Calculate MD5 hash
+                                // Calculate MD5 hash and check
                                 val hash = fullVersion.md5()
-                                
                                 if (hash in md5Set) {
                                     decryptedVersions.add(
                                         TestFirmwareVersion(
@@ -216,9 +250,93 @@ object TestFirmwareDecrypt {
                                             md5Hash = hash,
                                             year = year,
                                             month = month,
-                                            serialNumber = serial
+                                            serialNumber = serialChar.digitToIntOrNull() ?: (serialChar - 'A' + 10)
                                         )
                                     )
+                                    // Track baseband version
+                                    if (cpVersion.isNotEmpty() && !basebandVersions.contains(cpVersion)) {
+                                        basebandVersions.add(cpVersion)
+                                    }
+                                }
+                                
+                                // Try with different baseband versions (firmware updated but baseband not)
+                                for (tempBaseband in tempBasebands) {
+                                    if (tempBaseband.isEmpty()) continue
+                                    
+                                    val fullVersion2 = "$apVersion/$cscVersion/$tempBaseband"
+                                    if (fullVersion2 == fullVersion) continue
+                                    
+                                    val hash2 = fullVersion2.md5()
+                                    if (hash2 in md5Set) {
+                                        decryptedVersions.add(
+                                            TestFirmwareVersion(
+                                                versionCode = fullVersion2,
+                                                md5Hash = hash2,
+                                                year = year,
+                                                month = month,
+                                                serialNumber = serialChar.digitToIntOrNull() ?: (serialChar - 'A' + 10)
+                                            )
+                                        )
+                                        if (!basebandVersions.contains(tempBaseband)) {
+                                            basebandVersions.add(tempBaseband)
+                                        }
+                                    }
+                                }
+                                
+                                // Handle beta versions with 'Z' as 4th character from end (like Python)
+                                val betaVersionStr = "${bootloader}Z${yearChar}${monthChar}${serialChar}"
+                                val apVersionZ = "${modelCode}${apPrefix}${updateType}${betaVersionStr}"
+                                val cscVersionZ = "${modelCode}${cscPrefix}${betaVersionStr}"
+                                val cpVersionZ = if (cpPrefix.isNotEmpty()) {
+                                    "${modelCode}${cpPrefix}${updateType}${bootloader}${versionLetter}${yearChar}${monthChar}${serialChar}"
+                                } else {
+                                    ""
+                                }
+                                
+                                val fullVersionZ = if (cpVersionZ.isNotEmpty()) {
+                                    "$apVersionZ/$cscVersionZ/$cpVersionZ"
+                                } else {
+                                    "$apVersionZ/$cscVersionZ/$apVersionZ"
+                                }
+                                
+                                val hashZ = fullVersionZ.md5()
+                                if (hashZ in md5Set) {
+                                    decryptedVersions.add(
+                                        TestFirmwareVersion(
+                                            versionCode = fullVersionZ,
+                                            md5Hash = hashZ,
+                                            year = year,
+                                            month = month,
+                                            serialNumber = serialChar.digitToIntOrNull() ?: (serialChar - 'A' + 10)
+                                        )
+                                    )
+                                    if (cpVersionZ.isNotEmpty() && !basebandVersions.contains(cpVersionZ)) {
+                                        basebandVersions.add(cpVersionZ)
+                                    }
+                                }
+                                
+                                // Try beta version with different basebands
+                                for (tempBaseband in tempBasebands) {
+                                    if (tempBaseband.isEmpty()) continue
+                                    
+                                    val fullVersionZ2 = "$apVersionZ/$cscVersionZ/$tempBaseband"
+                                    if (fullVersionZ2 == fullVersionZ) continue
+                                    
+                                    val hashZ2 = fullVersionZ2.md5()
+                                    if (hashZ2 in md5Set) {
+                                        decryptedVersions.add(
+                                            TestFirmwareVersion(
+                                                versionCode = fullVersionZ2,
+                                                md5Hash = hashZ2,
+                                                year = year,
+                                                month = month,
+                                                serialNumber = serialChar.digitToIntOrNull() ?: (serialChar - 'A' + 10)
+                                            )
+                                        )
+                                        if (!basebandVersions.contains(tempBaseband)) {
+                                            basebandVersions.add(tempBaseband)
+                                        }
+                                    }
                                 }
                             }
                         }
