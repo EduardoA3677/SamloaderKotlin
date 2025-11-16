@@ -43,6 +43,8 @@
     <string name="noFirmwareFoundError">No firmware found for this model and CSC. Please try a different CSC.</string>
     <!-- Displayed when the user has specified a CSC that either doesn't exist or isn't used for the given model. -->
     <string name="invalidCscError">Invalid CSC specified. Please try a different CSC.</string>
+    <!-- Displayed when test firmware decryption fails to find any firmware versions -->
+    <string name="testFirmwareDecryptionError">Unable to decrypt test firmware versions. Test firmware is encrypted and may not be available for all models and regions. Try a different region or disable "Use Test Firmware".</string>
 
     <!-- Displayed when Bifrost is decrypting an encrypted firmware file -->
     <string name="decrypting">Decrypting</string>
