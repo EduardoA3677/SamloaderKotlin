@@ -10,8 +10,7 @@ import tk.zwander.common.tools.CryptUtils
  */
 @OptIn(DelicateCryptographyApi::class, ExperimentalStdlibApi::class)
 fun String.md5(): String {
-    val md5 = CryptUtils.md5Provider.hasher().createHashFunction()
     val bytes = this.toByteArray(Charsets.UTF_8)
-    val hash = md5.hash(bytes)
+    val hash = CryptUtils.md5Provider.hasher().hashBlocking(bytes)
     return hash.toHexString()
 }

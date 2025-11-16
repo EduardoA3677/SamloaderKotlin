@@ -3,6 +3,7 @@ package tk.zwander.common.tools
 import com.fleeksoft.ksoup.Ksoup
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tk.zwander.common.util.globalHttpClient
