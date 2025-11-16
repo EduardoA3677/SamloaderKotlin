@@ -78,6 +78,8 @@
     <string name="checkForUpdatesDesc">Check for Firmware Updates</string>
     <!-- The label for the "Manual" mode checkbox, allowing the user to manually request a specific firmware version from Samsung -->
     <string name="manual">Manual</string>
+    <!-- The label for the "Use Test Firmware" checkbox, allowing the user to fetch test/beta firmware versions from Samsung -->
+    <string name="useTestFirmware">Use Test Firmware</string>
     <!-- An action label to show more information about something -->
     <string name="moreInfo">More Info</string>
     <!-- An action label for confirmation -->

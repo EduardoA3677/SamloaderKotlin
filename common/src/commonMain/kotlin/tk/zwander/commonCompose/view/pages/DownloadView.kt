@@ -76,6 +76,7 @@ internal fun DownloadView() {
 
     val hasRunningJobs by model.hasRunningJobs.collectAsState(false)
     var manual by model.manual.collectAsMutableState()
+    var useTestFirmware by model.useTestFirmware.collectAsMutableState()
     val modelModel by model.model.collectAsState()
     val region by model.region.collectAsState()
     val fw by model.fw.collectAsState()
@@ -289,6 +290,46 @@ internal fun DownloadView() {
                         onDismissRequest = {
                             showingRequestWarningDialog = false
                         },
+                    )
+                }
+            }
+
+            // Test Firmware Checkbox
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.animateContentSize()
+                    .padding(bottom = 8.dp),
+            ) {
+                val testFirmwareSource = remember { MutableInteractionSource() }
+                
+                Row(
+                    modifier = Modifier.clickable(
+                        interactionSource = testFirmwareSource,
+                        indication = null,
+                        enabled = canChangeOption && !manual,
+                    ) {
+                        useTestFirmware = !useTestFirmware
+                    }
+                        .padding(4.dp)
+                ) {
+                    Checkbox(
+                        checked = useTestFirmware,
+                        onCheckedChange = {
+                            useTestFirmware = it
+                        },
+                        modifier = Modifier.align(Alignment.CenterVertically),
+                        enabled = canChangeOption && !manual,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        interactionSource = testFirmwareSource
+                    )
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Text(
+                        text = stringResource(MR.strings.useTestFirmware),
+                        modifier = Modifier.align(Alignment.CenterVertically),
                     )
                 }
             }
